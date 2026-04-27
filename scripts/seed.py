@@ -37,7 +37,9 @@ def main() -> None:
         reverse_order=False,
         title_template="{title}",
         link_template="{link}",
-        description_template="<p><strong>{category}</strong> &mdash; {date}</p><p>{description:raw}</p>",
+        description_template=(
+            "<p><strong>{category}</strong> &mdash; {date}</p><p>{description:raw}</p><hr>{body:raw}"
+        ),
         refresh_minutes=30,
         user_agent=None,
         encoding=None,
@@ -53,6 +55,7 @@ def main() -> None:
             FeedField(name="category", selector='[fs-list-field="category"]'),
             FeedField(name="date", selector='[fs-list-field="date"]', transform="parse_date"),
             FeedField(name="description", selector='[fs-list-field="description"]'),
+            FeedField(name="body", selector="article", source="post", transform="raw_html"),
         ],
     )
     feed_id = db.insert_feed(conn, aisi)

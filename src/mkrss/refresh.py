@@ -1,11 +1,15 @@
 import logging
 import sqlite3
+from hashlib import sha256
 
 from . import db
 from .fetch import Fetcher
-from .pipeline import extract, render_items
+from .pipeline import enrich_with_post, extract, post_fields, render_items
+from .templating import TemplateError, render
 
 logger = logging.getLogger(__name__)
+
+POST_FETCH_LIMIT_PER_REFRESH = 12
 
 
 async def refresh_one(conn: sqlite3.Connection, fetcher: Fetcher, feed_id: int) -> None:
@@ -42,25 +46,50 @@ async def refresh_one(conn: sqlite3.Connection, fetcher: Fetcher, feed_id: int) 
         )
         return
 
-    rendered = render_items(feed, extracted)
+    has_post_fields = bool(post_fields(feed))
+    existing_guids = {
+        r["guid"] for r in conn.execute("SELECT guid FROM items WHERE feed_id = ?", (feed_id,)).fetchall()
+    }
+
     inserted = 0
     skipped = 0
+    post_fetched = 0
     last_errors: list[str] = []
-    for r in rendered:
-        if not r.link:
+
+    for ex in extracted:
+        try:
+            link = render(feed.link_template, ex.fields).strip()
+        except TemplateError as e:
             skipped += 1
-            if r.errors:
-                last_errors.extend(r.errors[:1])
+            last_errors.append(f"link template: {e}")
             continue
+        if not link:
+            skipped += 1
+            continue
+
+        guid = sha256(link.encode()).hexdigest()
+        if guid in existing_guids:
+            continue
+
+        if has_post_fields and post_fetched < POST_FETCH_LIMIT_PER_REFRESH:
+            await enrich_with_post(feed, ex, link, fetcher)
+            post_fetched += 1
+        elif has_post_fields:
+            for f in post_fields(feed):
+                ex.fields.setdefault(f.name, "")
+
+        rendered = render_items(feed, [ex])[0]
+        if rendered.errors:
+            last_errors.extend(rendered.errors[:1])
         ok = db.insert_item(
             conn,
             feed_id=feed_id,
-            guid=r.guid,
-            title=r.title,
-            link=r.link,
-            description=r.description,
-            published_at=r.published_at,
-            raw_fields=r.raw_fields,
+            guid=guid,
+            title=rendered.title,
+            link=link,
+            description=rendered.description,
+            published_at=rendered.published_at,
+            raw_fields=rendered.raw_fields,
         )
         if ok:
             inserted += 1
@@ -75,10 +104,15 @@ async def refresh_one(conn: sqlite3.Connection, fetcher: Fetcher, feed_id: int) 
         feed_id,
         status="ok" if not error else "error",
         error=error,
-        item_count=len(rendered),
+        item_count=len(extracted),
     )
     logger.info(
-        "refreshed feed %s: extracted=%d inserted=%d skipped=%d", feed.slug, len(rendered), inserted, skipped
+        "refreshed feed %s: extracted=%d inserted=%d post_fetched=%d skipped=%d",
+        feed.slug,
+        len(extracted),
+        inserted,
+        post_fetched,
+        skipped,
     )
 
 

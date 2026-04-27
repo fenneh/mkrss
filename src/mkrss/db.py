@@ -67,6 +67,7 @@ MIGRATIONS: list[str] = [
     );
     """,
     "CREATE INDEX idx_items_feed_seen ON items(feed_id, first_seen_at DESC);",
+    "ALTER TABLE feed_fields ADD COLUMN source TEXT NOT NULL DEFAULT 'item';",
 ]
 
 
@@ -133,7 +134,7 @@ def _row_to_feed(row: sqlite3.Row, fields: list[FeedField]) -> Feed:
 
 def _load_fields(conn: sqlite3.Connection, feed_id: int) -> list[FeedField]:
     rows = conn.execute(
-        "SELECT name, selector, attribute, transform, position FROM feed_fields "
+        "SELECT name, selector, attribute, transform, position, source FROM feed_fields "
         "WHERE feed_id = ? ORDER BY position, id",
         (feed_id,),
     ).fetchall()
@@ -144,6 +145,7 @@ def _load_fields(conn: sqlite3.Connection, feed_id: int) -> list[FeedField]:
             attribute=r["attribute"],
             transform=r["transform"],
             position=r["position"],
+            source=r["source"] or "item",
         )
         for r in rows
     ]
@@ -261,10 +263,10 @@ def replace_fields(conn: sqlite3.Connection, feed_id: int, fields: Iterable[Feed
     for i, f in enumerate(fields):
         conn.execute(
             """
-            INSERT INTO feed_fields (feed_id, name, selector, attribute, transform, position)
-            VALUES (?,?,?,?,?,?)
+            INSERT INTO feed_fields (feed_id, name, selector, attribute, transform, position, source)
+            VALUES (?,?,?,?,?,?,?)
             """,
-            (feed_id, f.name, f.selector, f.attribute, f.transform, i),
+            (feed_id, f.name, f.selector, f.attribute, f.transform, i, f.source),
         )
 
 

@@ -14,10 +14,12 @@ from . import auth, db, slugs
 from .config import Config, load
 from .fetch import Fetcher
 from .models import Feed, FeedField
+from .pipeline import enrich_with_post, post_fields, render_items
 from .pipeline import extract as run_extract
-from .pipeline import render_items
 from .refresh import refresh_one, tick
 from .rss import build_feed_xml, feed_self_url
+from .templating import TemplateError
+from .templating import render as render_template
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -97,6 +99,7 @@ def _form_to_feed(form, *, existing: Feed | None = None) -> Feed:
     fields: list[FeedField] = []
     if extraction_mode == "css":
         names = form.getlist("field_name")
+        sources = form.getlist("field_source")
         selectors = form.getlist("field_selector")
         attributes = form.getlist("field_attribute")
         transforms = form.getlist("field_transform")
@@ -107,7 +110,19 @@ def _form_to_feed(form, *, existing: Feed | None = None) -> Feed:
                 continue
             attr = (attributes[i] if i < len(attributes) else "").strip() or None
             trans = (transforms[i] if i < len(transforms) else "").strip() or None
-            fields.append(FeedField(name=name, selector=sel, attribute=attr, transform=trans, position=i))
+            source = (sources[i] if i < len(sources) else "item").strip() or "item"
+            if source not in ("item", "post"):
+                source = "item"
+            fields.append(
+                FeedField(
+                    name=name,
+                    selector=sel,
+                    attribute=attr,
+                    transform=trans,
+                    position=i,
+                    source=source,
+                )
+            )
 
     return Feed(
         id=existing.id if existing else 0,
@@ -313,7 +328,15 @@ async def feed_test(slug: str, request: Request) -> Response:
             items=[],
             top_error="no items matched (selector/pattern wrong, or page may need browser mode)",
         )
-    rendered = render_items(candidate, extracted[:5])
+    preview = extracted[:3]
+    if post_fields(candidate):
+        for ex in preview:
+            try:
+                link = render_template(candidate.link_template, ex.fields).strip()
+            except TemplateError:
+                link = ""
+            await enrich_with_post(candidate, ex, link, fetcher)
+    rendered = render_items(candidate, preview)
     return _render("_items_preview.html", request, items=rendered, top_error=None)
 
 

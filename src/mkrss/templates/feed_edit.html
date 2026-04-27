@@ -61,14 +61,20 @@
     <label>Item selector (CSS — repeating container)
       <input type="text" name="item_selector" value="{{ feed.item_selector or '' }}" placeholder="div.work-card-wrapper">
     </label>
-    <p class="muted">For each match, the fields below are extracted relative to the item.</p>
+    <p class="muted">For each item-card match, the fields below are extracted. Set <strong>from</strong> to <em>post page</em> to follow the item's link and pull a field (e.g. full body) from there.</p>
 
     <table class="fields-table">
-      <thead><tr><th>name</th><th>selector</th><th>attribute</th><th>transform</th><th></th></tr></thead>
+      <thead><tr><th>name</th><th>from</th><th>selector</th><th>attribute</th><th>transform</th><th></th></tr></thead>
       <tbody id="fields-body">
         {% for f in feed.fields or [] %}
         <tr class="field-row">
           <td><input name="field_name" value="{{ f.name }}" placeholder="title"></td>
+          <td>
+            <select name="field_source">
+              <option value="item" {% if (f.source or 'item') == 'item' %}selected{% endif %}>listing card</option>
+              <option value="post" {% if f.source == 'post' %}selected{% endif %}>post page</option>
+            </select>
+          </td>
           <td><input name="field_selector" value="{{ f.selector }}" placeholder="[fs-list-field='title']"></td>
           <td><input name="field_attribute" value="{{ f.attribute or '' }}" placeholder="(text)"></td>
           <td>
@@ -78,6 +84,7 @@
               <option value="absolute_url" {% if t == 'absolute_url' %}selected{% endif %}>absolute_url</option>
               <option value="parse_date" {% if t == 'parse_date' %}selected{% endif %}>parse_date</option>
               <option value="strip_html" {% if t == 'strip_html' %}selected{% endif %}>strip_html</option>
+              <option value="raw_html" {% if t == 'raw_html' %}selected{% endif %}>raw_html (inner HTML)</option>
             </select>
           </td>
           <td><button type="button" class="link remove-row">&times;</button></td>
@@ -170,14 +177,19 @@ document.getElementById('add-field')?.addEventListener('click', () => {
   const tr = document.createElement('tr');
   tr.className = 'field-row';
   tr.innerHTML = `
-    <td><input name="field_name" placeholder="title"></td>
-    <td><input name="field_selector" placeholder="[fs-list-field='title']"></td>
+    <td><input name="field_name" placeholder="body"></td>
+    <td><select name="field_source">
+      <option value="item">listing card</option>
+      <option value="post">post page</option>
+    </select></td>
+    <td><input name="field_selector" placeholder="article"></td>
     <td><input name="field_attribute" placeholder="(text)"></td>
     <td><select name="field_transform">
       <option value="">(none)</option>
       <option value="absolute_url">absolute_url</option>
       <option value="parse_date">parse_date</option>
       <option value="strip_html">strip_html</option>
+      <option value="raw_html">raw_html (inner HTML)</option>
     </select></td>
     <td><button type="button" class="link remove-row">&times;</button></td>
   `;

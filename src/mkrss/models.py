@@ -12,6 +12,7 @@ class FeedField:
     attribute: str | None = None
     transform: str | None = None
     position: int = 0
+    source: str = "item"  # 'item' (relative to listing card) or 'post' (relative to followed link page)
 
 
 @dataclass
@@ -68,6 +69,7 @@ class FieldSpec:
     selector: str
     attribute: str | None
     transform: str | None
+    source: str = "item"
 
 
 @dataclass(frozen=True)

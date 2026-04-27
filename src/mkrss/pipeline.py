@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 
 from . import extractor_css, extractor_template
+from .fetch import Fetcher
 from .models import (
     CssExtractionSpec,
     ExtractedItem,
@@ -29,6 +30,19 @@ class RenderedItem:
         return sha256(self.link.encode()).hexdigest()
 
 
+def _field_specs(feed: Feed) -> tuple[FieldSpec, ...]:
+    return tuple(
+        FieldSpec(
+            name=f.name,
+            selector=f.selector,
+            attribute=f.attribute,
+            transform=f.transform,
+            source=f.source,
+        )
+        for f in feed.fields
+    )
+
+
 def extract(feed: Feed, html: str) -> list[ExtractedItem]:
     if feed.extraction_mode == "css":
         if not feed.item_selector:
@@ -36,10 +50,7 @@ def extract(feed: Feed, html: str) -> list[ExtractedItem]:
         spec = CssExtractionSpec(
             base_url=feed.source_url,
             item_selector=feed.item_selector,
-            fields=tuple(
-                FieldSpec(name=f.name, selector=f.selector, attribute=f.attribute, transform=f.transform)
-                for f in feed.fields
-            ),
+            fields=_field_specs(feed),
         )
         return extractor_css.extract(html, spec)
     if not feed.item_pattern:
@@ -52,6 +63,40 @@ def extract(feed: Feed, html: str) -> list[ExtractedItem]:
             reverse_order=feed.reverse_order,
         ),
     )
+
+
+def post_fields(feed: Feed) -> tuple[FieldSpec, ...]:
+    if feed.extraction_mode != "css":
+        return ()
+    return tuple(spec for spec in _field_specs(feed) if spec.source == "post")
+
+
+async def enrich_with_post(
+    feed: Feed,
+    item: ExtractedItem,
+    link: str,
+    fetcher: Fetcher,
+) -> None:
+    """Fetch the followed link and merge post-source fields into item.fields. Mutates item."""
+    fields = post_fields(feed)
+    if not fields or not link:
+        return
+    try:
+        post_html = await fetcher.fetch(
+            link,
+            render_mode=feed.render_mode,
+            user_agent=feed.user_agent,
+            encoding=feed.encoding,
+        )
+    except Exception as e:
+        item.errors.append(f"post fetch failed for {link}: {e}")
+        for f in fields:
+            item.fields.setdefault(f.name, "")
+        return
+    extracted, errors = extractor_css.extract_post(post_html, fields, link)
+    item.fields.update(extracted)
+    if errors:
+        item.errors.extend(errors)
 
 
 def render_items(feed: Feed, extracted: list[ExtractedItem]) -> list[RenderedItem]:
