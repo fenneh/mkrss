@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}feeds · mkrss{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>feeds</h1>
+  <a class="button primary" href="/feeds/new">new feed</a>
+</header>
+
+{% if not feeds %}
+<p class="muted">No feeds yet. <a href="/feeds/new">Create one</a> to get started.</p>
+{% else %}
+<table class="feed-list">
+  <thead>
+    <tr><th>title</th><th>source</th><th>status</th><th>last fetched</th><th>items</th><th>xml</th></tr>
+  </thead>
+  <tbody>
+  {% for feed in feeds %}
+    <tr>
+      <td><a href="/feeds/{{ feed.slug }}/edit">{{ feed.title }}</a></td>
+      <td><a href="{{ feed.source_url }}" target="_blank" rel="noopener" class="muted">{{ feed.source_url }}</a></td>
+      <td>
+        {% if feed.last_status == 'ok' %}<span class="badge ok">ok</span>
+        {% elif feed.last_status == 'error' %}<span class="badge err" title="{{ feed.last_error }}">error</span>
+        {% else %}<span class="badge muted">-</span>{% endif %}
+      </td>
+      <td class="muted">{{ feed.last_fetched_at or '-' }}</td>
+      <td>{{ feed.last_item_count if feed.last_item_count is not none else '-' }}</td>
+      <td>
+        <a href="{{ base_url }}/feeds/{{ feed.slug }}.xml" target="_blank" rel="noopener">.xml</a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

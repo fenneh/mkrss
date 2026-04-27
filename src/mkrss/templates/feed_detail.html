@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ feed.title }} · mkrss{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>{{ feed.title }}</h1>
+  <a class="button primary" href="{{ xml_url }}">subscribe (RSS)</a>
+</header>
+
+<p class="muted">Source: <a href="{{ feed.source_url }}" target="_blank" rel="noopener">{{ feed.source_url }}</a></p>
+
+<section class="status">
+  <div><strong>status:</strong>
+    {% if feed.last_status == 'ok' %}<span class="badge ok">ok</span>
+    {% elif feed.last_status == 'error' %}<span class="badge err">error</span>
+    {% else %}<span class="badge muted">-</span>{% endif %}
+  </div>
+  <div><strong>last fetched:</strong> <span class="muted">{{ feed.last_fetched_at or '-' }}</span></div>
+  <div><strong>items:</strong> {{ feed.last_item_count if feed.last_item_count is not none else '-' }}</div>
+  {% if feed.last_error %}<div class="error">{{ feed.last_error }}</div>{% endif %}
+</section>
+
+<h2>recent items</h2>
+{% if not items %}
+<p class="muted">No items yet.</p>
+{% else %}
+<ul class="items-list">
+{% for item in items %}
+<li>
+  <a href="{{ item.link }}" target="_blank" rel="noopener"><strong>{{ item.title }}</strong></a>
+  <span class="muted small">— first seen {{ item.first_seen_at }}</span>
+</li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}{{ feed.title or 'new feed' }} · mkrss{% endblock %}
+{% block content %}
+{% set is_edit = mode == 'edit' %}
+{% set form_action = '/feeds/' ~ feed.slug if is_edit else '/feeds' %}
+{% set test_action = '/feeds/' ~ feed.slug ~ '/test' if is_edit else '' %}
+
+<header class="page-header">
+  <h1>{{ feed.title or 'new feed' }}</h1>
+  <div class="actions">
+    {% if is_edit %}
+    <a class="button" href="{{ base_url }}/feeds/{{ feed.slug }}.xml" target="_blank" rel="noopener">view xml</a>
+    <form method="post" action="/feeds/{{ feed.slug }}/refresh"><button class="button">refresh now</button></form>
+    <form method="post" action="/feeds/{{ feed.slug }}/delete" onsubmit="return confirm('Delete this feed?')">
+      <button class="button danger">delete</button>
+    </form>
+    {% endif %}
+  </div>
+</header>
+
+{% if is_edit and feed.last_status == 'error' %}
+<div class="error-banner">⚠️ Last fetch failed: {{ feed.last_error }}</div>
+{% endif %}
+
+<div class="editor">
+<form id="feed-form" method="post" action="{{ form_action }}" class="editor-form">
+
+<fieldset>
+  <legend>1. Source</legend>
+  <label>Source URL
+    <input type="url" name="source_url" value="{{ feed.source_url }}" required placeholder="https://example.com/blog">
+  </label>
+  <label>Channel link (defaults to source URL)
+    <input type="url" name="link" value="{{ feed.link }}" placeholder="https://example.com/blog">
+  </label>
+  <label>Render mode
+    <select name="render_mode">
+      <option value="http" {% if feed.render_mode == 'http' %}selected{% endif %}>HTTP (fast, raw HTML)</option>
+      <option value="browser" {% if feed.render_mode == 'browser' %}selected{% endif %}>Browser (Playwright, for SPAs)</option>
+    </select>
+  </label>
+  <details>
+    <summary class="muted">advanced</summary>
+    <label>Custom user agent
+      <input type="text" name="user_agent" value="{{ feed.user_agent or '' }}">
+    </label>
+    <label>Encoding (optional, e.g. GBK)
+      <input type="text" name="encoding" value="{{ feed.encoding or '' }}">
+    </label>
+  </details>
+</fieldset>
+
+<fieldset>
+  <legend>2. Extraction</legend>
+  <div class="tabs" role="tablist">
+    <label class="tab"><input type="radio" name="extraction_mode" value="css" {% if feed.extraction_mode != 'template' %}checked{% endif %}> CSS selectors</label>
+    <label class="tab"><input type="radio" name="extraction_mode" value="template" {% if feed.extraction_mode == 'template' %}checked{% endif %}> Template (rsseverything-style)</label>
+  </div>
+
+  <div class="mode-css" data-mode="css">
+    <label>Item selector (CSS — repeating container)
+      <input type="text" name="item_selector" value="{{ feed.item_selector or '' }}" placeholder="div.work-card-wrapper">
+    </label>
+    <p class="muted">For each match, the fields below are extracted relative to the item.</p>
+
+    <table class="fields-table">
+      <thead><tr><th>name</th><th>selector</th><th>attribute</th><th>transform</th><th></th></tr></thead>
+      <tbody id="fields-body">
+        {% for f in feed.fields or [] %}
+        <tr class="field-row">
+          <td><input name="field_name" value="{{ f.name }}" placeholder="title"></td>
+          <td><input name="field_selector" value="{{ f.selector }}" placeholder="[fs-list-field='title']"></td>
+          <td><input name="field_attribute" value="{{ f.attribute or '' }}" placeholder="(text)"></td>
+          <td>
+            <select name="field_transform">
+              {% set t = f.transform or '' %}
+              <option value="" {% if t == '' %}selected{% endif %}>(none)</option>
+              <option value="absolute_url" {% if t == 'absolute_url' %}selected{% endif %}>absolute_url</option>
+              <option value="parse_date" {% if t == 'parse_date' %}selected{% endif %}>parse_date</option>
+              <option value="strip_html" {% if t == 'strip_html' %}selected{% endif %}>strip_html</option>
+            </select>
+          </td>
+          <td><button type="button" class="link remove-row">&times;</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" id="add-field" class="button">+ add field</button>
+  </div>
+
+  <div class="mode-template" data-mode="template">
+    <label>Item search pattern
+      <textarea name="item_pattern" rows="4" placeholder="<div>{*}<a href=&quot;{%}&quot;>{%}</a>{*}</div>">{{ feed.item_pattern or '' }}</textarea>
+    </label>
+    <p class="muted"><code>{%}</code> = capture (numbered <code>{%1}</code>, <code>{%2}</code>...), <code>{*}</code> = wildcard skip.</p>
+    <label>Global pattern (optional, constrains scope)
+      <textarea name="global_pattern" rows="2">{{ feed.global_pattern or '' }}</textarea>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="reverse_order" {% if feed.reverse_order %}checked{% endif %}> Reverse order
+    </label>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>3. Output</legend>
+  <label>Feed title
+    <input type="text" name="title" value="{{ feed.title }}" required>
+  </label>
+  <label>Feed description
+    <textarea name="description" rows="2">{{ feed.description }}</textarea>
+  </label>
+  <label>Item title template
+    <input type="text" name="title_template" value="{{ feed.title_template }}">
+  </label>
+  <label>Item link template
+    <input type="text" name="link_template" value="{{ feed.link_template }}">
+  </label>
+  <label>Item description template
+    <textarea name="description_template" rows="3">{{ feed.description_template }}</textarea>
+  </label>
+  <p class="muted">Use <code>{name}</code> for CSS fields, <code>{%1}</code>/<code>{%2}</code> for template captures. Suffix with <code>:raw</code> to skip HTML escaping (e.g. <code>{description:raw}</code>).</p>
+  <label>Refresh interval (minutes)
+    <input type="number" name="refresh_minutes" min="1" value="{{ feed.refresh_minutes }}">
+  </label>
+</fieldset>
+
+<div class="form-actions">
+  <button type="submit" class="button primary">{% if is_edit %}save{% else %}create{% endif %}</button>
+  {% if is_edit %}
+  <button type="button" id="test-btn" class="button"
+          hx-post="{{ test_action }}"
+          hx-include="#feed-form"
+          hx-target="#preview"
+          hx-swap="innerHTML"
+          hx-indicator="#test-spinner">
+    test extraction
+  </button>
+  <span id="test-spinner" class="htmx-indicator muted">testing…</span>
+  {% endif %}
+</div>
+</form>
+
+<aside class="preview-pane">
+  <h2>preview</h2>
+  <div id="preview" class="preview-body">
+    {% if is_edit %}
+    <p class="muted">Click <strong>test extraction</strong> to see what would be captured.</p>
+    {% else %}
+    <p class="muted">Save the feed first, then come back to test extraction.</p>
+    {% endif %}
+  </div>
+</aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showMode() {
+  const mode = document.querySelector('input[name=extraction_mode]:checked').value;
+  document.querySelectorAll('[data-mode]').forEach(el => {
+    el.style.display = (el.dataset.mode === mode) ? '' : 'none';
+  });
+}
+document.querySelectorAll('input[name=extraction_mode]').forEach(el => el.addEventListener('change', showMode));
+showMode();
+
+document.getElementById('add-field')?.addEventListener('click', () => {
+  const tbody = document.getElementById('fields-body');
+  const tr = document.createElement('tr');
+  tr.className = 'field-row';
+  tr.innerHTML = `
+    <td><input name="field_name" placeholder="title"></td>
+    <td><input name="field_selector" placeholder="[fs-list-field='title']"></td>
+    <td><input name="field_attribute" placeholder="(text)"></td>
+    <td><select name="field_transform">
+      <option value="">(none)</option>
+      <option value="absolute_url">absolute_url</option>
+      <option value="parse_date">parse_date</option>
+      <option value="strip_html">strip_html</option>
+    </select></td>
+    <td><button type="button" class="link remove-row">&times;</button></td>
+  `;
+  tbody.appendChild(tr);
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.classList?.contains('remove-row')) {
+    e.target.closest('tr')?.remove();
+  }
+});
+</script>
+{% endblock %}

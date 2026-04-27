@@ -1,0 +1,28 @@
+{% if top_error %}
+<p class="error">{{ top_error }}</p>
+{% elif not items %}
+<p class="muted">No items matched.</p>
+{% else %}
+<p class="muted">Showing {{ items|length }} item(s):</p>
+{% for item in items %}
+<article class="preview-item">
+  <h3><a href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title or '(empty title)' }}</a></h3>
+  <p class="muted small">{{ item.link }}</p>
+  <div class="preview-desc">{{ item.description|safe }}</div>
+  {% if item.errors %}
+  <details class="preview-errors">
+    <summary>{{ item.errors|length }} warning(s)</summary>
+    <ul>{% for err in item.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+  <details class="preview-fields">
+    <summary>captured fields</summary>
+    <table><tbody>
+      {% for k, v in item.raw_fields.items() %}
+      <tr><th>{{ k }}</th><td>{{ v }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+  </details>
+</article>
+{% endfor %}
+{% endif %}
