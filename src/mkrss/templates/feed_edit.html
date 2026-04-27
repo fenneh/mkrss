@@ -90,9 +90,9 @@
 
   <div class="mode-template" data-mode="template">
     <label>Item search pattern
-      <textarea name="item_pattern" rows="4" placeholder="<div>{*}<a href=&quot;{%}&quot;>{%}</a>{*}</div>">{{ feed.item_pattern or '' }}</textarea>
+      {% raw %}<textarea name="item_pattern" rows="4" placeholder="<div>{*}<a href=&quot;{%}&quot;>{%}</a>{*}</div>">{% endraw %}{{ feed.item_pattern or '' }}</textarea>
     </label>
-    <p class="muted"><code>{%}</code> = capture (numbered <code>{%1}</code>, <code>{%2}</code>...), <code>{*}</code> = wildcard skip.</p>
+    {% raw %}<p class="muted"><code>{%}</code> = capture (numbered <code>{%1}</code>, <code>{%2}</code>...), <code>{*}</code> = wildcard skip.</p>{% endraw %}
     <label>Global pattern (optional, constrains scope)
       <textarea name="global_pattern" rows="2">{{ feed.global_pattern or '' }}</textarea>
     </label>
@@ -119,7 +119,7 @@
   <label>Item description template
     <textarea name="description_template" rows="3">{{ feed.description_template }}</textarea>
   </label>
-  <p class="muted">Use <code>{name}</code> for CSS fields, <code>{%1}</code>/<code>{%2}</code> for template captures. Suffix with <code>:raw</code> to skip HTML escaping (e.g. <code>{description:raw}</code>).</p>
+  {% raw %}<p class="muted">Use <code>{name}</code> for CSS fields, <code>{%1}</code>/<code>{%2}</code> for template captures. Suffix with <code>:raw</code> to skip HTML escaping (e.g. <code>{description:raw}</code>).</p>{% endraw %}
   <label>Refresh interval (minutes)
     <input type="number" name="refresh_minutes" min="1" value="{{ feed.refresh_minutes }}">
   </label>
