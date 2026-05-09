@@ -39,6 +39,6 @@ jobs:
       - name: Deploy to Dokku
         uses: dokku/github-action@master
         with:
-          git_remote_url: ssh://dokku@***
+          git_remote_url: ${{ secrets.DOKKU_REMOTE_URL }}
           ssh_private_key: ${{ secrets.DOKKU_SSH_KEY }}
           git_push_flags: --force
