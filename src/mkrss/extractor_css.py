@@ -12,10 +12,11 @@ def _capture(node: Node, field: FieldSpec) -> tuple[str, str | None]:
     if target is None:
         return "", f"selector '{field.selector}' matched nothing for field '{field.name}'"
     if field.attribute:
-        value = target.attributes.get(field.attribute) or ""
-    else:
-        value = target.text(deep=True, separator=" ", strip=True)
-    return value, None
+        return target.attributes.get(field.attribute) or "", None
+    if field.transform == "raw_html":
+        inner = "".join(child.html or "" for child in target.iter(include_text=True))
+        return inner.strip(), None
+    return target.text(deep=True, separator=" ", strip=True), None
 
 
 def _apply_transform(value: str, transform: str | None, base_url: str) -> tuple[str, str | None]:
@@ -35,27 +36,13 @@ def _apply_transform(value: str, transform: str | None, base_url: str) -> tuple[
     return value, f"unknown transform '{transform}'"
 
 
-def _capture_html(node: Node, field: FieldSpec) -> tuple[str, str | None]:
-    """Like _capture but returns the inner HTML of the matched element when no attribute is set."""
-    target = node.css_first(field.selector)
-    if target is None:
-        return "", f"selector '{field.selector}' matched nothing for field '{field.name}'"
-    if field.attribute:
-        return target.attributes.get(field.attribute) or "", None
-    inner = "".join(child.html or "" for child in target.iter(include_text=True))
-    return inner.strip(), None
-
-
 def _extract_fields(
     node: Node, fields: Iterable[FieldSpec], base_url: str
 ) -> tuple[dict[str, str], list[str]]:
     out: dict[str, str] = {}
     errors: list[str] = []
     for field in fields:
-        if field.transform == "raw_html":
-            value, err = _capture_html(node, field)
-        else:
-            value, err = _capture(node, field)
+        value, err = _capture(node, field)
         if err:
             errors.append(err)
         value, terr = _apply_transform(value, field.transform, base_url)
