@@ -4,8 +4,6 @@
 
 A self-hosted alternative to rsseverything.com. Point it at a page, define an extraction rule, and get a clean RSS feed your reader can subscribe to.
 
-Live instance: <https://mkrss.local>
-
 ## Features
 
 - **Two extraction modes**

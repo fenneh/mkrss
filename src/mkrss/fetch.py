@@ -6,7 +6,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_USER_AGENT = "mkrss/0.1 (+https://mkrss.local)"
+DEFAULT_USER_AGENT = "mkrss/0.1 (+https://github.com/fenneh/mkrss)"
 HTTP_TIMEOUT = 15.0
 BROWSER_TIMEOUT_MS = 25000
 BROWSER_CONCURRENCY = 2
