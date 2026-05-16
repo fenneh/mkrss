@@ -1,5 +1,7 @@
+from datetime import UTC, datetime, timedelta
+
 from mkrss.models import Feed, Item
-from mkrss.rss import build_feed_xml
+from mkrss.rss import _to_datetime, build_feed_xml, feed_self_url
 
 
 def _feed() -> Feed:
@@ -61,3 +63,46 @@ def test_builds_well_formed_rss():
 def test_self_link_uses_base_url():
     xml = build_feed_xml(_feed(), [], base_url="http://localhost:8000")
     assert b"http://localhost:8000/feeds/aisi-blog-3f9c2a1b.xml" in xml
+
+
+def test_feed_self_url_strips_trailing_slash():
+    assert feed_self_url("https://example.com/", "my-feed") == "https://example.com/feeds/my-feed.xml"
+
+
+def test_to_datetime_none_returns_utc_now():
+    before = datetime.now(UTC)
+    result = _to_datetime(None)
+    after = datetime.now(UTC)
+    assert before <= result <= after
+    assert result.tzinfo is not None
+
+
+def test_to_datetime_empty_returns_utc_now():
+    before = datetime.now(UTC)
+    result = _to_datetime("")
+    after = datetime.now(UTC)
+    assert before <= result <= after
+
+
+def test_to_datetime_iso_with_tz_preserved():
+    result = _to_datetime("2026-04-01T10:00:00+00:00")
+    assert result == datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+
+
+def test_to_datetime_naive_gets_utc():
+    result = _to_datetime("2026-04-01T10:00:00")
+    assert result.tzinfo is UTC
+    assert result.year == 2026 and result.month == 4 and result.day == 1
+
+
+def test_to_datetime_non_utc_offset_preserved():
+    result = _to_datetime("2026-04-01T12:00:00+02:00")
+    assert result.utcoffset() == timedelta(hours=2)
+
+
+def test_to_datetime_invalid_string_returns_utc_now():
+    before = datetime.now(UTC)
+    result = _to_datetime("not-a-date")
+    after = datetime.now(UTC)
+    assert before <= result <= after
+    assert result.tzinfo is not None
