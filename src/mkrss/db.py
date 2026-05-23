@@ -96,10 +96,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         if i <= current:
             continue
         conn.executescript(sql)
-        if i == 1:
-            conn.execute("INSERT INTO schema_version(version) VALUES (?)", (1,))
-        else:
-            conn.execute("INSERT INTO schema_version(version) VALUES (?)", (i,))
+        conn.execute("INSERT INTO schema_version(version) VALUES (?)", (i,))
 
 
 def _row_to_feed(row: sqlite3.Row, fields: list[FeedField]) -> Feed:
