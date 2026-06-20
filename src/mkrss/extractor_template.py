@@ -6,7 +6,7 @@ _CAPTURE = "{%}"
 _WILDCARD = "{*}"
 
 
-def _compile(pattern: str, *, anchor_full_match: bool) -> re.Pattern[str]:
+def _compile(pattern: str) -> re.Pattern[str]:
     out: list[str] = []
     i = 0
     while i < len(pattern):
@@ -19,22 +19,19 @@ def _compile(pattern: str, *, anchor_full_match: bool) -> re.Pattern[str]:
         else:
             out.append(re.escape(pattern[i]))
             i += 1
-    body = "".join(out)
-    if anchor_full_match:
-        body = f"(?s){body}"
-    return re.compile(body, re.DOTALL)
+    return re.compile("".join(out), re.DOTALL)
 
 
 def extract(html: str, spec: TemplateExtractionSpec) -> list[ExtractedItem]:
     text = html
     if spec.global_pattern:
-        gre = _compile(spec.global_pattern, anchor_full_match=False)
+        gre = _compile(spec.global_pattern)
         m = gre.search(text)
         if m is None:
             return []
         text = m.group(0)
 
-    item_re = _compile(spec.item_pattern, anchor_full_match=False)
+    item_re = _compile(spec.item_pattern)
     items: list[ExtractedItem] = []
     for match in item_re.finditer(text):
         groups = match.groups()
