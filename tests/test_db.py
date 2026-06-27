@@ -141,3 +141,34 @@ def test_update_feed_status(tmp_path):
     assert feed.last_status == "error"
     assert feed.last_error == "fetch failed"
     assert feed.last_item_count == 0
+
+
+def test_list_due_feed_ids_never_fetched(tmp_path):
+    conn = _setup(tmp_path)
+    feed_id = db.insert_feed(conn, _feed())
+    assert feed_id in db.list_due_feed_ids(conn)
+
+
+def test_list_due_feed_ids_just_fetched_not_due(tmp_path):
+    conn = _setup(tmp_path)
+    feed_id = db.insert_feed(conn, _feed())
+    db.update_feed_status(conn, feed_id, status="ok", error=None, item_count=1)
+    assert feed_id not in db.list_due_feed_ids(conn)
+
+
+def test_list_due_feed_ids_stale_feed_is_due(tmp_path):
+    conn = _setup(tmp_path)
+    feed_id = db.insert_feed(conn, _feed())
+    conn.execute("UPDATE feeds SET last_fetched_at='2000-01-01T00:00:00Z' WHERE id=?", (feed_id,))
+    assert feed_id in db.list_due_feed_ids(conn)
+
+
+def test_list_due_feed_ids_excludes_recent_feed(tmp_path):
+    conn = _setup(tmp_path)
+    feed_id_recent = db.insert_feed(conn, _feed("recent"))
+    feed_id_stale = db.insert_feed(conn, _feed("stale"))
+    db.update_feed_status(conn, feed_id_recent, status="ok", error=None, item_count=0)
+    conn.execute("UPDATE feeds SET last_fetched_at='2000-01-01T00:00:00Z' WHERE id=?", (feed_id_stale,))
+    due = db.list_due_feed_ids(conn)
+    assert feed_id_stale in due
+    assert feed_id_recent not in due
