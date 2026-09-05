@@ -38,7 +38,7 @@ uv run uvicorn mkrss.main:app --reload
 Open <http://localhost:8000>, log in with `test`, edit the seeded feed and click **test extraction** to iterate on selectors.
 
 ```bash
-uv run pytest -q                         # 22 tests
+uv run pytest -q                         # 122 tests
 uvx ruff check .                         # lint
 ```
 
