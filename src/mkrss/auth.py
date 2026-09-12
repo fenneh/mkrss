@@ -1,6 +1,6 @@
 import secrets
 
-from fastapi import HTTPException, Request, Response
+from fastapi import Request, Response
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from .config import Config
@@ -41,13 +41,3 @@ def verify_password(cfg: Config, supplied: str) -> bool:
     if not cfg.editor_password:
         return False
     return secrets.compare_digest(cfg.editor_password.encode(), supplied.encode())
-
-
-def require_editor(cfg: Config):
-    def dependency(request: Request) -> None:
-        if not cfg.editor_password:
-            raise HTTPException(status_code=404)
-        if not is_authenticated(cfg, request):
-            raise HTTPException(status_code=303, headers={"location": "/login"})
-
-    return dependency
