@@ -1,5 +1,9 @@
 # mkrss
 
+[![CI](https://github.com/fenneh/mkrss/actions/workflows/ci.yml/badge.svg)](https://github.com/fenneh/mkrss/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/fenneh/mkrss/blob/main/LICENSE)
+
 > Make RSS feeds from any webpage.
 
 A self-hosted alternative to rsseverything.com. Point it at a page, define an extraction rule, and get a clean RSS feed your reader can subscribe to.
