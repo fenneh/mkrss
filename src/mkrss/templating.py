@@ -33,4 +33,7 @@ class _SafeFormatter(Formatter):
 
 def render(template: str, fields: dict[str, str]) -> str:
     normalised = _normalise(template)
-    return _SafeFormatter(fields).format(normalised)
+    try:
+        return _SafeFormatter(fields).format(normalised)
+    except ValueError as e:
+        raise TemplateError(f"invalid template: {e}") from e

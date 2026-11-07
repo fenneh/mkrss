@@ -44,3 +44,9 @@ def test_unknown_placeholder_raises():
 def test_unsupported_format_spec_raises():
     with pytest.raises(TemplateError):
         render("{title:weird}", {"title": "x"})
+
+
+@pytest.mark.parametrize("template", ["{title", "}{", "{title}}", "{%1"])
+def test_malformed_template_raises_template_error(template):
+    with pytest.raises(TemplateError, match="invalid template"):
+        render(template, {"title": "x", "p1": "x"})

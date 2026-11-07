@@ -92,6 +92,14 @@ def test_render_items_template_error_blanks_fields_and_records_error():
     assert "notpresent" in r.errors[0]
 
 
+def test_render_items_malformed_template_records_error():
+    feed = _feed(title_template="{title")
+    ex = ExtractedItem(fields={"title": "T", "link": "https://example.com", "description": ""})
+    items = render_items(feed, [ex])
+    assert len(items[0].errors) == 1
+    assert "invalid template" in items[0].errors[0]
+
+
 def test_render_items_propagates_extractor_errors():
     ex = _item()
     ex.errors.append("selector missed")
