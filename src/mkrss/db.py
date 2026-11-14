@@ -327,7 +327,7 @@ def prune_items(conn: sqlite3.Connection, feed_id: int, keep: int = 100) -> None
         WHERE feed_id = ?
           AND id NOT IN (
             SELECT id FROM items WHERE feed_id = ?
-            ORDER BY first_seen_at DESC, id DESC LIMIT ?
+            ORDER BY first_seen_at DESC, id ASC LIMIT ?
           )
         """,
         (feed_id, feed_id, keep),
@@ -338,7 +338,7 @@ def list_items(conn: sqlite3.Connection, feed_id: int, limit: int = 50) -> list[
     rows = conn.execute(
         """
         SELECT * FROM items WHERE feed_id = ?
-        ORDER BY first_seen_at DESC, id DESC LIMIT ?
+        ORDER BY first_seen_at DESC, id ASC LIMIT ?
         """,
         (feed_id, limit),
     ).fetchall()

@@ -123,6 +123,25 @@ def test_prune_items_keeps_most_recent(tmp_path):
     assert len(remaining) == 3
 
 
+def test_list_items_newest_first_within_refresh_batch(tmp_path):
+    conn = _setup(tmp_path)
+    feed_id = db.insert_feed(conn, _feed())
+    for guid in ("g0", "g1", "g2"):
+        _insert_item(conn, feed_id, guid)
+    conn.execute("UPDATE items SET first_seen_at = '2026-01-01T00:00:00Z'")
+    assert [i.title for i in db.list_items(conn, feed_id)] == ["g0", "g1", "g2"]
+
+
+def test_prune_items_keeps_newest_within_refresh_batch(tmp_path):
+    conn = _setup(tmp_path)
+    feed_id = db.insert_feed(conn, _feed())
+    for guid in ("g0", "g1", "g2", "g3", "g4"):
+        _insert_item(conn, feed_id, guid)
+    conn.execute("UPDATE items SET first_seen_at = '2026-01-01T00:00:00Z'")
+    db.prune_items(conn, feed_id, keep=3)
+    assert [i.title for i in db.list_items(conn, feed_id, limit=100)] == ["g0", "g1", "g2"]
+
+
 def test_prune_items_noop_when_under_limit(tmp_path):
     conn = _setup(tmp_path)
     feed_id = db.insert_feed(conn, _feed())
