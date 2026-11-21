@@ -136,6 +136,41 @@ def test_feed_new_form_renders(client):
     _login(client)
     resp = client.get("/feeds/new")
     assert resp.status_code == 200
+    assert "test extraction" in resp.text
+
+
+def test_preview_requires_auth(client):
+    resp = client.post("/preview", data={}, follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/login"
+
+
+def test_preview_renders_extracted_items_for_new_feed(client, monkeypatch):
+    _login(client)
+
+    async def fake_fetch(url, *, render_mode, user_agent=None, encoding=None):
+        return '<article><h2>One</h2><a href="/post-1">read</a></article>'
+
+    monkeypatch.setattr(client.app.state.fetcher, "fetch", fake_fetch)
+
+    resp = client.post(
+        "/preview",
+        data={
+            "source_url": "https://example.com",
+            "title": "Example Feed",
+            "extraction_mode": "css",
+            "render_mode": "http",
+            "item_selector": "article",
+            "field_name": ["title", "link"],
+            "field_source": ["item", "item"],
+            "field_selector": ["h2", "a"],
+            "field_attribute": ["", "href"],
+            "field_transform": ["", "absolute_url"],
+        },
+    )
+    assert resp.status_code == 200
+    assert "One" in resp.text
+    assert "https://example.com/post-1" in resp.text
 
 
 def test_feed_save_updates_title(client):
