@@ -296,7 +296,17 @@ async def feed_save(slug: str, request: Request) -> Response:
     return RedirectResponse(f"/feeds/{slug}/edit", status_code=303)
 
 
-async def _extraction_preview(candidate: Feed, request: Request) -> HTMLResponse:
+@app.post("/feeds/{slug}/test", response_class=HTMLResponse)
+async def feed_test(slug: str, request: Request) -> Response:
+    redirect = _editor_or_redirect(request)
+    if redirect:
+        return redirect
+    conn = _conn(request)
+    existing = db.get_feed_by_slug(conn, slug)
+    if existing is None:
+        return Response(status_code=404)
+    form = await request.form()
+    candidate = _form_to_feed(form, existing=existing)
     fetcher = _fetcher(request)
     try:
         html = await fetcher.fetch(
@@ -328,30 +338,6 @@ async def _extraction_preview(candidate: Feed, request: Request) -> HTMLResponse
             await enrich_with_post(candidate, ex, link, fetcher)
     rendered = render_items(candidate, preview)
     return _render("_items_preview.html", request, items=rendered, top_error=None)
-
-
-@app.post("/preview", response_class=HTMLResponse)
-async def feed_preview(request: Request) -> Response:
-    redirect = _editor_or_redirect(request)
-    if redirect:
-        return redirect
-    form = await request.form()
-    candidate = _form_to_feed(form, existing=None)
-    return await _extraction_preview(candidate, request)
-
-
-@app.post("/feeds/{slug}/test", response_class=HTMLResponse)
-async def feed_test(slug: str, request: Request) -> Response:
-    redirect = _editor_or_redirect(request)
-    if redirect:
-        return redirect
-    conn = _conn(request)
-    existing = db.get_feed_by_slug(conn, slug)
-    if existing is None:
-        return Response(status_code=404)
-    form = await request.form()
-    candidate = _form_to_feed(form, existing=existing)
-    return await _extraction_preview(candidate, request)
 
 
 @app.post("/feeds/{slug}/refresh")
